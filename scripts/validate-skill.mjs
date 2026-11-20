@@ -9,12 +9,13 @@
 //   * SKILL.md body < 500 lines (guidance, enforced as a warning-free limit)
 //   * every relative link in the docs resolves
 //   * the docs are English-only (no CJK), which this repository requires
+//     (exemption: README.md files are human-facing and written in Chinese)
 //
 // Run: node scripts/validate-skill.mjs
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep, basename } from 'node:path';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 // The repository IS the skill: SKILL.md sits at the repo root.
@@ -164,7 +165,10 @@ for (const file of mdFiles) {
   const text = readFileSync(file, 'utf8');
   const rel = relative(ROOT, file);
 
-  const cjk = stripFences(text).match(CJK);
+  // README.md is for humans (Chinese by design); only the skill-facing docs must be English.
+  const isReadme = /^readme\.md$/i.test(basename(file));
+
+  const cjk = isReadme ? null : stripFences(text).match(CJK);
   if (cjk) {
     const line = stripFences(text).slice(0, cjk.index).split('\n').length;
     fail(`${rel}:${line} contains CJK characters outside a fenced code block; `

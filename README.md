@@ -1,108 +1,94 @@
 # weappdev-skill
 
-An [Agent Skill](https://code.claude.com/docs/en/skills) for **WeAppDev** — the Android app that runs
-WeChat mini-programs outside WeChat and exposes a full debugger through MCP.
+**WeAppDev** 的 Agent Skill。WeAppDev 是一个脱离微信运行小程序、并内置完整调试器的 Android 应用，
+本仓库教会 AI 助手怎么用它：抓包、云开发、Native 捕获、逆向签名、断点、WebSocket、UI 自动化、写插件。
 
-The skill teaches an AI assistant how to drive the `weappdev-mcp` server: capture network, cloud and
-native traffic, reverse signing algorithms, set breakpoints, intercept WebSocket frames, automate the
-UI, and build plugins.
+- 应用仓库（本体，不开源，只发 APK）：<https://github.com/RYF5584/weappdev>
+- MCP 服务（本 Skill 依赖）：<https://github.com/RYF5584/weappdev-mcp>
+- 官网文档：<https://weappdev.top>
 
-## Install
+## 安装
 
-**The repository IS the skill** — `SKILL.md` sits at the repo root, so any of these works:
-
-### One command (npx)
+这个仓库本身就是 Skill（`SKILL.md` 在根目录），一条命令装好：
 
 ```bash
-npx -y @ryf5584/weappdev-skill@latest init            # installs into ~/.zcode/skills or ~/.claude/skills
-npx -y @ryf5584/weappdev-skill@latest init --dir .claude/skills   # project-local instead
+npx -y skills add RYF5584/weappdev-skill
 ```
 
-### Download ZIP (no git, no Node)
+常用变体：
 
-Download the repo ZIP from GitHub, extract it, rename the folder to `weappdev`, and drop it into
-your client's skills directory (`~/.zcode/skills/`, `~/.claude/skills/`, …). The extracted folder
-already has `SKILL.md` at its root — nothing else to move around.
+```bash
+npx -y skills add RYF5584/weappdev-skill -g          # 装到全局（~/.claude/skills 等），所有项目可用
+npx -y skills add RYF5584/weappdev-skill -a claude-code   # 只装到指定客户端
+npx -y skills add RYF5584/weappdev-skill -l          # 先看仓库里有哪些 skill，不安装
+```
 
-### From git
+装完在支持 Agent Skills 的客户端里新开一个会话就生效。
+
+### 手动安装（没有 Node）
 
 ```bash
 git clone https://github.com/RYF5584/weappdev-skill.git
 mkdir -p ~/.claude/skills
-cp -r weappdev-skill ~/.claude/skills/weappdev    # note: the clone IS the skill folder
+cp -r weappdev-skill ~/.claude/skills/weappdev     # 克隆下来的目录直接就是 skill 目录
 ```
 
-Most hosts also accept a symlink to the same folder.
+或者下载仓库 ZIP 解压，把文件夹改名为 `weappdev` 放进客户端的 skills 目录。放软链接也可以。
 
-## Prerequisite: the MCP server
+## 先装 MCP
 
-The skill assumes the MCP server is configured. Add it to your client **once**:
+Skill 只是说明书，真正干活的是 MCP 工具。客户端里加一次配置：
 
 ```json
 {
   "mcpServers": {
     "weappdev": {
       "command": "npx",
-      "args": ["-y", "weappdev-mcp"]
+      "args": ["-y", "@ryf5584/weappdev-mcp"]
     }
   }
 }
 ```
 
-That package is [weappdev-mcp](https://github.com/RYF5584/weappdev-mcp) (npm: `@ryf5584/weappdev-mcp`). It
-aggregates one or many phones. If you instead point your client straight at a phone
-(`http://<phone>:9400/mcp`), the skill still applies — see `reference/connection.md`, which explains the
-two modes and what changes.
+`@ryf5584/weappdev-mcp` 负责自动发现设备并聚合多台手机。也可以跳过它直连手机
+（`http://<手机IP>:9400/mcp`），单设备时更省事，细节见 `reference/connection.md`。
 
-You also need the WeAppDev app running on the phone, Node.js 22+, and `adb` for USB setups.
+前置条件：手机上装好并打开 WeAppDev；用 USB 时本机需要 `adb`。
 
-## What is inside
+## 里面有什么
 
 ```
-skills/weappdev/
-├── SKILL.md                     entry point + routing table
-├── reference/
-│   ├── connection.md            direct phone vs aggregator; device selection; MCP-vs-REST pitfalls; "no device"
-│   ├── reverse-engineering.md   capture → initiator → source → breakpoint → paused state → replay
-│   ├── network-capture.md       HTTP records, replay, rewriting, hooks
-│   ├── cloud-capture.md         cloud-development calls, keys, build/decode
-│   ├── pure-protocol.md         NEW: /v1/ilink plane — js-login code, user-encrypt-key, plugin
-│   │                            HostSign, gateway/container credentials, any tcbapi_* via jsop;
-│   │                            measured request templates; -12030/-12028/61010/-103006 semantics
-│   ├── native-capture.md        JSAPI envelope layer, credentials, live modification
-│   ├── websocket.md             frames, send/recv, block/rewrite
-│   ├── automation.md            snapshot/click/fill/screenshot/wait, batches
-│   ├── plugins.md               plugin format, API surface, full dev loop (write/install/debug/update)
-│   ├── tools.md                 all 64 tools with arguments
-│   └── troubleshooting.md       error codes and symptom-first diagnosis
-├── examples/                    copy-paste call sequences per scenario
-│   └── cloud-dev-protocol.md    gateway/container/function purely by protocol (channel decision
-│                                V3 HTTP vs native jsop), measured templates
-└── scripts/                     same job, one per interpreter — never install a runtime for these
-    ├── check_env.py             pre-flight environment check (Windows / Linux / macOS)
-    ├── check-env.sh             pre-flight environment check (POSIX shell)
-    ├── check-env.mjs            pre-flight environment check (Node 18+, optional)
-    ├── mcp_call.py              call any MCP tool from the shell (stdlib only)
-    └── mcp-call.mjs             call any MCP tool from the shell (Node 18+)
+SKILL.md                 入口，按任务路由到下面的文件
+reference/
+  connection.md          直连 vs 聚合、选设备、"没设备"排查
+  reverse-engineering.md 定位接口 → 断点 → 求值 → 还原算法
+  network-capture.md     HTTP 抓包、重放、改写、hooks
+  cloud-capture.md       云开发调用、密钥、V3 解密
+  pure-protocol.md       纯协议打云开发：js-login、HostSign、tcbapi、风控码含义
+  native-capture.md      JSAPI 信封层、凭证、实时改写
+  websocket.md           帧收发、阻断、改写
+  automation.md          快照/点击/填写/截图/等待、批量调用
+  plugins.md             插件格式、API、开发调试全流程
+  tools.md               全部 64 个工具的入参
+  troubleshooting.md     错误码与症状排查
+examples/                按场景给的可直接抄的调用序列
+scripts/                 环境检查与 MCP 调用脚本（.py / .sh / .mjs 各一份，不用装运行时）
 ```
 
-`SKILL.md` is short on purpose: it routes to one reference file, so the assistant loads only what the
-task needs.
+`SKILL.md` 故意写得很短，只做路由，这样 AI 一次只加载需要的那一页。
 
-## Validate
+## 校验
 
 ```bash
 node scripts/validate-skill.mjs
 ```
 
-Checks the frontmatter against the Agent Skills spec (allowed keys, description and compatibility
-lengths, `---` on line 1), resolves every relative link, enforces the English-only rule, and keeps the
-entry file under 500 lines. CI runs it on every push.
+检查 frontmatter 是否符合 Agent Skills 规范、相对链接是否都能打开、`SKILL.md` 是否超长。CI 每次 push 都会跑。
 
-## Languages
+## 关于语言
 
-English only, by design: the skill is consumed by assistants, and mixed-language reference material
-made routing and search less reliable.
+`SKILL.md`、`reference/`、`examples/` 是英文：内容由 AI 读取，单一语言检索更准。
+这份 README 是给人看的，所以用中文。
 
 ## License
 
