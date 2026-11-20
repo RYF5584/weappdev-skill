@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Validate skill spec and links
+        run: node scripts/validate-skill.mjs
+
+      - name: Script syntax
+        run: |
+          node --check scripts/mcp-call.mjs
+          bash -n scripts/check-env.sh
+
+      - name: Scripts are executable
+        run: |
+          set -euo pipefail
+          for f in scripts/check-env.sh scripts/mcp-call.mjs; do
+            test -x "$f" || { echo "::error::$f is not executable"; exit 1; }
+          done

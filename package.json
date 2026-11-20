@@ -1,0 +1,48 @@
+{
+  "name": "@ryf5584/weappdev-skill",
+  "version": "1.0.0",
+  "description": "Agent Skill for WeAppDev: debug, reverse-engineer and automate Android WeChat mini-programs over MCP. The repository IS the skill - SKILL.md sits at the root.",
+  "keywords": [
+    "agent-skills",
+    "skill",
+    "weappdev",
+    "wechat",
+    "miniprogram",
+    "mcp",
+    "android",
+    "reverse-engineering"
+  ],
+  "homepage": "https://github.com/RYF5584/weappdev-skill#readme",
+  "bugs": {
+    "url": "https://github.com/RYF5584/weappdev-skill/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RYF5584/weappdev-skill.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "weappdev-skill": "scripts/install-skill.mjs"
+  },
+  "scripts": {
+    "validate": "node scripts/validate-skill.mjs",
+    "test": "node scripts/validate-skill.mjs",
+    "init": "node scripts/install-skill.mjs init"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "SKILL.md",
+    "reference/",
+    "examples/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

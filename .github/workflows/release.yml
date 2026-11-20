@@ -1,0 +1,71 @@
+name: release
+
+# Publishes weappdev-skill to npm.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# One-time setup (NPM_TOKEN flow):
+#   1. npmjs.com -> avatar -> Access Tokens -> Generate New Token -> Classic Token,
+#      type **Automation**, name NPM_TOKEN. Copy it.
+#   2. GitHub repo -> Settings -> Secrets and variables -> Actions ->
+#      New repository secret: name NPM_TOKEN, value = the token.
+#
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run everything but skip the actual publish'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      # 1. Validate the skill before anything leaves the machine.
+      - name: Validate skill
+        run: npm run validate
+
+      - name: Script syntax
+        run: |
+          node --check scripts/mcp-call.mjs
+          node --check scripts/mcp_call.py 2>/dev/null || python3 -m py_compile scripts/mcp_call.py
+          node --check scripts/check-env.mjs
+          node --check scripts/install-skill.mjs
+          bash -n scripts/check-env.sh
+
+      # 2. The tag decides the version: refuse to publish a mismatched tag.
+      - name: Verify tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          pkg_version=$(node -p "require('./package.json').version")
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$pkg_version" != "$tag_version" ]; then
+            echo "::error::tag v${tag_version} does not match package.json ${pkg_version}"
+            exit 1
+          fi
+          echo "version ${pkg_version} confirmed"
+
+      # 3. Inspect the tarball before publishing it.
+      - name: Pack dry-run
+        run: npm pack --dry-run
+
+      # 4. Publish.
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.dry_run == false
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
